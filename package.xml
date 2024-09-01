@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>asvcommon</name>
+  <description>basic utility</description>
+
+  <version>0.0.11</version>
+  <license>BSD</license>
+  <author>Tim Hansen</author>
+  <maintainer email="thansen@constructor.university">Tim Hansen</maintainer>
+
+
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>commonbluerovmsg</depend>
+  <depend>visualization_msgs</depend>
+  <depend>waterlinked_a50</depend>
+  <depend>rclpy</depend>
+  <depend>ping360_sonar_msgs</depend>
+  <depend>px4_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+
+
+
+</package>
