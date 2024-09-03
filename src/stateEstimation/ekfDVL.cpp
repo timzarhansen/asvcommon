@@ -74,37 +74,6 @@ void ekfClassDVL::predictionImu(double xAccel, double yAccel, double zAccel, Eig
 
 }
 
-void ekfClassDVL::simplePrediction(rclcpp::Time timeStamp) {
-    //for saving the current EKF pose difference in
-    double timeDiff = (timeStamp - this->stateOfEKF.timeLastPrediction).seconds();
-
-    if (timeDiff > 0.4 || timeDiff < 0) {
-        timeDiff = 0.4;
-    }
-    Eigen::MatrixXd A = Eigen::MatrixXd::Identity(12, 12);
-    //state Transition Matrix
-    A(0, 3) = timeDiff;
-    A(1, 4) = timeDiff;
-    A(2, 5) = timeDiff;
-    A(6, 9) = timeDiff;
-    A(7, 10) = timeDiff;
-    A(8, 11) = timeDiff;
-    Eigen::VectorXd state = this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel();
-
-    state = A * state;
-    if (state(8) > M_PI) {
-        state(8) = state(8) - 2 * M_PI;
-    }
-    if (state(8) < -M_PI) {
-        state(8) = state(8) + 2 * M_PI;
-    }
-
-    this->stateOfEKF.applyState(state);
-    //update covariance
-    this->stateOfEKF.covariance = A * this->stateOfEKF.covariance * A.transpose() + processNoise;
-    this->stateOfEKF.timeLastPrediction = timeStamp;
-}
-
 void ekfClassDVL::updateIMU(double roll, double pitch, double xAngularVel, double yAngularVel, double zAngularVel,
                             Eigen::Quaterniond currentRotation,
                             rclcpp::Time timeStamp) {
@@ -197,31 +166,7 @@ ekfClassDVL::updateDVL(double xVel, double yVel, double zVel, Eigen::Quaterniond
 //    std::cout << "DVL UPDATE: \n" << velocityLocalLinear <<std::endl;
 }
 
-//void
-//ekfClassDVL::updateHeight(double depth, rclcpp::Time timeStamp) {
-//    if (isnan(depth)) {
-//        depth = 0;
-//    }
-//    //for saving the current EKF pose difference in
-//    Eigen::VectorXd currentStateBeforeUpdate = this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel();
-////    std::cout << "current height update" << std::endl;
-////    std::cout << currentStateBeforeUpdate[5] << std::endl;
-////    std::cout << currentStateBeforeUpdate[2] << std::endl;
-//
-//    Eigen::VectorXd innovation;
-//    Eigen::VectorXd z = Eigen::VectorXd::Zero(12);
-//    z(2) = depth;
-//    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(12, 12);
-//    H(2, 2) = 1;
-//    innovation = z - H * this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel();//also y
-//    Eigen::MatrixXd S = H * this->stateOfEKF.covariance * H.transpose() + this->measurementNoiseDepth;
-//    Eigen::MatrixXd K = this->stateOfEKF.covariance * H.transpose() * S.inverse();
-//    Eigen::VectorXd newState = this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel() + K * innovation;
-//    this->stateOfEKF.applyState(newState);
-//    this->stateOfEKF.covariance = (Eigen::MatrixXd::Identity(12, 12) - K * H) * this->stateOfEKF.covariance;
-////    std::cout << this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel()[2] << std::endl;
-////    std::cout << this->stateOfEKF.getStatexyzvxvyvzrpyrvelpvelyvel()[5] << std::endl;
-//}
+
 
 void
 ekfClassDVL::updateHeading(double yawRotation, rclcpp::Time timeStamp) {
@@ -325,12 +270,8 @@ void ekfClassDVL::setMeasurementNoiseDVL(double vxNoise, double vyNoise, double 
     this->measurementNoiseDVL(3, 3) = vxNoise;//vx
     this->measurementNoiseDVL(4, 4) = vyNoise;//vy
     this->measurementNoiseDVL(5, 5) = vzNoise;//vz
-//    std::cout << vxNoise <<" " <<vyNoise<<" " << vzNoise << std::endl;
 }
 
-void ekfClassDVL::setMeasurementNoiseDepth(double zNoise) {
-    this->measurementNoiseDepth(2, 2) = zNoise;//z
-}
 
 void
 ekfClassDVL::setMeasurementNoiseIMUVel(double rNoise, double pNoise, double vrNoise, double vpNoise, double vyNoise) {

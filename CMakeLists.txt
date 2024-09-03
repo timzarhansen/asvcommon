@@ -29,11 +29,11 @@ find_package(px4_msgs REQUIRED)
 find_package(waterlinked_a50 REQUIRED)
 find_package(ping360_sonar_msgs REQUIRED)
 find_package(dynamic_reconfigure REQUIRED)
-
+find_package(asvcommonmsg REQUIRED)
 include_directories(src/generalTools)
 
 add_executable(ekfNode src/stateEstimation/ekfDVLnode.cpp src/stateEstimation/pose.h src/stateEstimation/ekfDVL.cpp src/stateEstimation/ekfDVL.h src/generalTools/generalHelpfulTools.cpp)
-ament_target_dependencies(ekfNode rclcpp std_msgs sensor_msgs waterlinked_a50 tf2 Eigen3 px4_msgs)
+ament_target_dependencies(ekfNode rclcpp std_msgs sensor_msgs waterlinked_a50 tf2 Eigen3 px4_msgs asvcommonmsg)
 #target_link_libraries(ekfNode )
 #
 #

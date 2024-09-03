@@ -5,38 +5,25 @@
 #include "rclcpp/rclcpp.hpp"
 
 // just for tricking compiler
-//#include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "waterlinked_a50/msg/transducer_report_stamped.hpp"
-#include "waterlinked_a50/msg/position_report_stamped.hpp"
-
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
-//#include <geometry_msgs/msg/PoseWithCovarianceStamped.hpp>
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/fluid_pressure.hpp"
-//#include "geometry_msgs/TwistWithCovarianceStamped.h"
+
 #include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
-//#include "geometry_msgs/TwistStamped.h"
+
 #include "geometry_msgs/msg/twist_stamped.hpp"
-//#include "geometry_msgs/Vector3Stamped.h"
+
 #include "geometry_msgs/msg/vector3_stamped.hpp"
-//#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "px4_msgs/msg/sensor_baro.hpp"
 #include "px4_msgs/msg/vehicle_air_data.hpp"
 #include "px4_msgs/msg/sensor_combined.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 
-//#include "../slamTools/generalHelpfulTools.h"
-//#include "waterlinked_dvl/TransducerReportStamped.h"
-//#include "commonbluerovmsg/srv/reset_ekf.hpp"
-//#include "commonbluerovmsg/msg/height_stamped.hpp"
-//#include <chrono>
+
 #include <thread>
-//#include "bluerov2common/ekfParameterConfig.h"
-//#include <dynamic_reconfigure/server.h>
-//#include <commonbluerovmsg/msg/state_of_blue_rov.hpp>
-#include "dynamic_reconfigure/server.h"
+#include "asvcommonmsg/srv/reset_ekf.hpp"
 
 static constexpr double CONSTANTS_ONE_G = 9.80665;
 
@@ -52,12 +39,9 @@ public:
 
         rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_sensor_data);
 
-
-        // External = 0; Mavros = 1; Gazebo = 2
         this->firstMessage = true;
         this->currentInputDVL = 0;
         this->currentInputIMU = 0;
-//        this->subscriberDVL.shutdown();
         this->rotationOfDVL = Eigen::AngleAxisd(2.35619449019,
                                                 Eigen::Vector3d::UnitZ());//yaw rotation for correct alignment of DVL data; quick fix set to default
         this->positionIMU = Eigen::Vector3d(0, 0, 0);
@@ -68,37 +52,8 @@ public:
                                                                                std::bind(&RosClassEKF::imuCallback,
                                                                                          this, std::placeholders::_1));
 
-//        this->subscriberPX4IMU = this->create_subscription<px4_msgs::msg::SensorCombined>("/fmu/out/sensor_combined", qos,
-//                                                                               std::bind(&RosClassEKF::imuCallbackPX4,
-//                                                                                         this, std::placeholders::_1));
-        std::cout << "test DVL:" << std::endl;
         this->subscriberDVL = this->create_subscription<waterlinked_a50::msg::TransducerReportStamped>(
                 "/velocity_estimate", qos, std::bind(&RosClassEKF::DVLCallbackDVL, this, std::placeholders::_1));
-
-
-//        this->subscriberDepthOwnTopic = this->create_subscription<commonbluerovmsg::msg::HeightStamped>("height_baro",
-//                                                                                                        qos,
-//                                                                                                        std::bind(
-//                                                                                                                &RosClassEKF::depthSensorCallback,
-//                                                                                                                this,
-//                                                                                                                std::placeholders::_1));
-
-//        this->subscriberDepthSensorBaroPX4 = this->create_subscription<px4_msgs::msg::SensorBaro>("/fmu/out/sensor_baro", qos,
-//                                                                                                        std::bind(
-//                                                                                                        &RosClassEKF::depthSensorBaroPX4,
-//                                                                                                        this,
-//                                                                                                        std::placeholders::_1));
-//        this->subscriberDepthSensorBaroSensorTube = this->create_subscription<sensor_msgs::msg::FluidPressure>(
-//                "/pressure", qos,
-//                std::bind(
-//                        &RosClassEKF::depthSensorBaroSensorTubeCallback,
-//                        this,
-//                        std::placeholders::_1));
-//        this->subscriberDepthSensorVehicleAirData = this->create_subscription<px4_msgs::msg::VehicleAirData>("/fmu/out/vehicle_air_data", qos,
-//                                                                                                  std::bind(
-//                                                                                                          &RosClassEKF::depthSensorVehicleAir,
-//                                                                                                          this,
-//                                                                                                          std::placeholders::_1));
 
 
         this->subscriberHeading = this->create_subscription<geometry_msgs::msg::Vector3Stamped>("magnetic_heading", qos,
@@ -106,12 +61,6 @@ public:
                                                                                                         &RosClassEKF::headingCallback,
                                                                                                         this,
                                                                                                         std::placeholders::_1));
-
-//        this->serviceResetEkf = this->create_service<commonbluerovmsg::srv::ResetEkf>("resetCurrentEKF",
-//                                                                                      std::bind(&RosClassEKF::resetEKF,
-//                                                                                                this,
-//                                                                                                std::placeholders::_1,
-//                                                                                                std::placeholders::_2));
 
         this->publisherPoseEkf = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
                 "publisherPoseEkf", qos);
@@ -130,16 +79,12 @@ public:
     }
 
 private:
-//    std::deque<sensor_msgs::Imu::ConstPtr> imuDeque;
-//    std::deque<mavros_msgs::Altitude::ConstPtr> depthDeque;
-//    std::deque<geometry_msgs::TwistStamped::ConstPtr> dvlDeque;
     ekfClassDVL currentEkf;
 
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr subscriberIMU;
     rclcpp::Subscription<px4_msgs::msg::SensorCombined>::SharedPtr subscriberPX4IMU;
 
     //subscriber
-//    rclcpp::Subscription<commonbluerovmsg::msg::HeightStamped>::SharedPtr subscriberDepthOwnTopic;
     rclcpp::Subscription<px4_msgs::msg::SensorBaro>::SharedPtr subscriberDepthSensorBaroPX4;
     rclcpp::Subscription<sensor_msgs::msg::FluidPressure>::SharedPtr subscriberDepthSensorBaroSensorTube;
     rclcpp::Subscription<px4_msgs::msg::VehicleAirData>::SharedPtr subscriberDepthSensorVehicleAirData;
@@ -159,10 +104,10 @@ private:
     Eigen::Quaterniond rotationOfDVL;
     Eigen::Vector3d positionIMU, positionDVL;
 
-    int currentInputDVL;
-    int currentInputIMU;
-    double pressureWhenStarted;
-    bool firstMessage;
+//    int currentInputDVL;
+//    int currentInputIMU;
+//    double pressureWhenStarted;
+//    bool firstMessage;
     rclcpp::Time timeAtStart;
 
     OnSetParametersCallbackHandle::SharedPtr callback_handle_;
@@ -237,12 +182,12 @@ private:
         this->declare_parameter("processNoiseY", 0.02);
         this->declare_parameter("processNoiseZ", 0.005);
 
-        //Position of Sensors
+        //Position of Sensors from the middle point of the vehicle
         //DVL:
         this->declare_parameter("xPositionDVL", 0.0);
         this->declare_parameter("yPositionDVL", 0.0);
         this->declare_parameter("zPositionDVL", 0.0);
-        this->declare_parameter("yawRotationDVL", 0.0);
+        this->declare_parameter("yawRotationDVL", 2.35619449019);
 
         //IMU
         this->declare_parameter("xPositionIMU", 0.0);
@@ -299,188 +244,221 @@ private:
 
     rcl_interfaces::msg::SetParametersResult parametersCallback(
             const std::vector<rclcpp::Parameter> &parameters) {
+        std::cout << "changing Params" << std::endl;
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = false;
         result.reason = "";
         for (const auto &param: parameters) {
             if (param.get_name() == "measurementNoiseImuPitch") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseImuPitch = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseImuRoll") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseImuRoll = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseImuVelocityVelRoll") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseImuVelocityVelRoll = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseImuVelocityVelPitch") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseImuVelocityVelPitch = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseImuVelocityVelYaw") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseImuVelocityVelYaw = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseDVLVX") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseDVLVX = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseDVLVY") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseDVLVY = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "measurementNoiseDVLVZ") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->measurementNoiseDVLVZ = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoisePitch") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoisePitch = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseRoll") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseRoll = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseYaw") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseYaw = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVX") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVX = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVY") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVY = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVZ") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVZ = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVelPitch") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVelPitch = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVelRoll") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVelRoll = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseVelYaw") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseVelYaw = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseX") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseX = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseY") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseY = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "processNoiseZ") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->processNoiseZ = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "xPositionDVL") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->xPositionDVL = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "yPositionDVL") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->yPositionDVL = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "zPositionDVL") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->zPositionDVL = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "yawRotationDVL") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->yawRotationDVL = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "xPositionIMU") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->xPositionIMU = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "yPositionIMU") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->yPositionIMU = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "zPositionIMU") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->zPositionIMU = param.as_double();
                     result.successful = true;
                 }
             }
             if (param.get_name() == "yawRotationIMU") {
-                if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
                     this->yawRotationIMU = param.as_double();
                     result.successful = true;
                 }
             }
         }
+
+        this->ekfSetParams();
         return result;
+    }
+
+    void ekfSetParams(){
+        this->updateSlamMutex.lock();
+
+        this->currentEkf.setProcessNoise(this->processNoiseX, this->processNoiseY, this->processNoiseZ,
+                                         this->processNoiseVX, this->processNoiseVY, this->processNoiseVZ,
+                                         this->processNoiseRoll, this->processNoisePitch, this->processNoiseYaw,
+                                         this->processNoiseVelRoll, this->processNoiseVelPitch,
+                                         this->processNoiseVelYaw);
+
+        this->currentEkf.setMeasurementNoiseDVL(this->measurementNoiseDVLVX, this->measurementNoiseDVLVY,
+                                                this->measurementNoiseDVLVZ);
+
+
+        this->currentEkf.setMeasurementNoiseIMUVel(this->measurementNoiseImuRoll,
+                                                   this->measurementNoiseImuPitch,
+                                                   this->measurementNoiseImuVelocityVelRoll,
+                                                   this->measurementNoiseImuVelocityVelPitch,
+                                                   this->measurementNoiseImuVelocityVelYaw);
+        this->rotationOfDVL = Eigen::AngleAxisd(this->yawRotationDVL,
+                                                Eigen::Vector3d::UnitZ());//yaw rotation for correct alignment of DVL data;
+
+        this->positionDVL.x() = this->xPositionDVL;
+        this->positionDVL.y() = this->yPositionDVL;
+        this->positionDVL.z() = this->zPositionDVL;
+
+        this->positionIMU.x() = this->xPositionIMU;
+        this->positionIMU.y() = this->yPositionIMU;
+        this->positionIMU.z() = this->zPositionIMU;
+
+        this->updateSlamMutex.unlock();
     }
 
 
     void imuCallbackHelper(const sensor_msgs::msg::Imu::SharedPtr msg) {
 
-//        std::cout << "takin IMU message"<< std::endl;
         Eigen::Matrix3d transformationX180DegreeRotationMatrix;
-//        Eigen::AngleAxisd rotation_vector2(180.0 / 180.0 * 3.14159, Eigen::Vector3d(1, 0, 0));
         Eigen::AngleAxisd rotation_vector2(180.0 / 180.0 * 3.14159, Eigen::Vector3d(1, 0, 0));
 
         transformationX180DegreeRotationMatrix = rotation_vector2.toRotationMatrix();
@@ -512,8 +490,6 @@ private:
                                           msg->linear_acceleration.z * msg->linear_acceleration.z));
 
         rotationRP = getQuaternionFromRPY(rollIMUACCEL, pitchIMUACCEL, 0);
-//        rotationRP = getQuaternionFromRPY(-rollIMUACCEL, pitchIMUACCEL, 0);
-
         newMsg.orientation.x = rotationRP.x();//not sure if correct
         newMsg.orientation.y = rotationRP.y();//not sure if correct
         newMsg.orientation.z = rotationRP.z();//not sure if correct
@@ -528,9 +504,6 @@ private:
         tmpRot.y() = newMsg.orientation.y;
         tmpRot.z() = newMsg.orientation.z;
         tmpRot.w() = newMsg.orientation.w;
-
-//        std::cout << msg->linear_acceleration.x<< " " << msg->linear_acceleration.y<< " " << msg->linear_acceleration.z << std::endl;
-
         currentEkf.predictionImu(newMsg.linear_acceleration.x, newMsg.linear_acceleration.y,
                                  newMsg.linear_acceleration.z,
                                  tmpRot, this->positionIMU,
@@ -538,10 +511,6 @@ private:
 
         Eigen::Vector3d euler = generalHelpfulTools::getRollPitchYaw(tmpRot);// roll pitch yaw
 
-        //calculate roll pitch from IMU accel data
-//        std::cout << "my Roll: "<< euler.x()*180/M_PI<< std::endl;
-//        std::cout << "my Pitch: "<< euler.y()*180/M_PI<< std::endl;
-//        std::cout << "my Yaw: "<< euler.z()*180/M_PI<< std::endl;
         currentEkf.updateIMU(euler.x(), euler.y(), newMsg.angular_velocity.x, newMsg.angular_velocity.y,
                              newMsg.angular_velocity.z, tmpRot, newMsg.header.stamp);
         pose currentStateEkf = currentEkf.getState();
@@ -555,7 +524,6 @@ private:
         poseMsg.pose.pose.orientation.y = rotDiff.y();
         poseMsg.pose.pose.orientation.z = rotDiff.z();
         poseMsg.pose.pose.orientation.w = rotDiff.w();
-//        std::cout << msg->header.stamp << std::endl;
         poseMsg.header.stamp = msg->header.stamp;
         this->publisherPoseEkf->publish(poseMsg);
         geometry_msgs::msg::TwistWithCovarianceStamped twistMsg;
@@ -599,7 +567,6 @@ private:
     }
 
     void DVLCallbackDVLHelper(const waterlinked_a50::msg::TransducerReportStamped::SharedPtr msg) {
-//        std::cout << "getting DVL message" << std::endl;
         if (!msg->report.velocity_valid || msg->report.status != 0) {
             //if we don't know anything, the ekf should just go to 0, else the IMU gives direction.
             this->currentEkf.updateDVL(0, 0, 0, this->rotationOfDVL, this->positionDVL, rclcpp::Time(msg->timestamp));
@@ -673,9 +640,6 @@ private:
     }
 
     Eigen::Quaterniond getQuaternionFromRPY(double roll, double pitch, double yaw) {
-//        tf2::Matrix3x3 m;
-//        m.setRPY(roll,pitch,yaw);
-//        Eigen::Matrix3d m2;
         tf2::Quaternion qtf2;
         qtf2.setRPY(roll, pitch, yaw);
         Eigen::Quaterniond q;
@@ -683,10 +647,6 @@ private:
         q.y() = qtf2.y();
         q.z() = qtf2.z();
         q.w() = qtf2.w();
-
-//        q = Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX())
-//            * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())
-//            * Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
         return q;
     };
 
